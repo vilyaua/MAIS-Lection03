@@ -4,7 +4,8 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     api_key: SecretStr
-    model_name: str = "gpt-4o-mini"
+    model_name: str = "gpt-4.1-mini"
+    provider: str = "openai"  # "openai" or "anthropic"
 
     max_search_results: int = 5
     max_url_content_length: int = 8000

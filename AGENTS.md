@@ -1,5 +1,27 @@
 # AGENTS.md — Research Agent (Lesson 3 Homework)
 
+## Persona
+
+You are a **seasoned Python/AI developer** with deep experience in LangChain, LangGraph, and building LLM-powered agents. You write clean, minimal, production-aware code.
+
+## Guardrails
+
+- **Keep it simple.** Use `create_react_agent` directly — no custom abstractions, factory patterns, or wrapper classes. The homework asks for a ReAct agent, not a framework.
+- **Follow homework requirements exactly.** Implement what's specified — 3 tools, agent loop, memory, context engineering. Don't add features that weren't asked for.
+- **Don't invent abstractions.** No base classes, no tool registries, no plugin systems. Three functions decorated with `@tool` is enough.
+- **Test before committing.** Run `python main.py`, ask a real question, verify the agent calls multiple tools and produces a report.
+- **Handle errors in tools, not in the agent loop.** Each tool returns a string — on failure, return a clear error message. The agent (LLM) will adapt.
+- **Secrets stay in `.env`.** Never hardcode API keys. Never commit `.env`.
+
+## Work Tracking
+
+After every significant change (new feature, bugfix, refactor, config change), append an entry to `DEVLOG.md` with:
+- **Date and time** (YYYY-MM-DD HH:MM)
+- **Short title** describing what was done
+- **Bullet list** of concrete changes (files touched, what changed, why)
+
+Keep entries factual and concise. Don't log trivial edits (typo fixes, formatting). Group related changes into one entry.
+
 ## Goal
 
 Build an interactive **Research Agent** that takes a user's question, autonomously searches the web using tools, collects findings, and generates a structured Markdown report — all powered by LangChain's ReAct agent loop.
@@ -179,6 +201,7 @@ The skeleton is mostly complete. Key additions needed:
 - Pass a `config` dict with `thread_id` to maintain conversation memory across turns
 - Pass `recursion_limit` to cap agent iterations
 - Stream agent responses for real-time output
+- **Log token usage** after each turn (see Step 5)
 
 ```python
 from agent import agent
@@ -216,12 +239,93 @@ def main():
                 for msg in chunk["agent"]["messages"]:
                     if hasattr(msg, "content") and msg.content:
                         print(f"\nAgent: {msg.content}")
+                    # Log token usage from each LLM response
+                    if hasattr(msg, "usage_metadata") and msg.usage_metadata:
+                        u = msg.usage_metadata
+                        logger.info(
+                            "Tokens — input: %d, output: %d, total: %d",
+                            u.get("input_tokens", 0),
+                            u.get("output_tokens", 0),
+                            u.get("total_tokens", 0),
+                        )
 
 if __name__ == "__main__":
     main()
 ```
 
-### Step 5: Dependencies (`requirements.txt`)
+### Step 5: Logging & Token Usage Tracking
+
+Set up Python's built-in `logging` module to trace agent activity and token consumption. This is essential for debugging and cost awareness.
+
+#### 5.1 Logger Setup
+
+Configure logging at the top of `main.py` (or in a shared module):
+
+```python
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger("research_agent")
+```
+
+#### 5.2 Token Tracking via `usage_metadata`
+
+LangChain's `AIMessage` objects include a `usage_metadata` dict with token counts after each LLM call. Extract it while streaming:
+
+```python
+# Inside the stream loop, after checking msg.content:
+if hasattr(msg, "usage_metadata") and msg.usage_metadata:
+    u = msg.usage_metadata
+    logger.info(
+        "Tokens — input: %d, output: %d, total: %d",
+        u.get("input_tokens", 0),
+        u.get("output_tokens", 0),
+        u.get("total_tokens", 0),
+    )
+```
+
+#### 5.3 Cumulative Session Totals
+
+Track total tokens across the entire session to understand cost:
+
+```python
+session_tokens = {"input": 0, "output": 0, "total": 0}
+
+# Inside the stream loop, when usage_metadata is found:
+session_tokens["input"] += u.get("input_tokens", 0)
+session_tokens["output"] += u.get("output_tokens", 0)
+session_tokens["total"] += u.get("total_tokens", 0)
+
+# After each agent turn completes:
+logger.info("Session totals — input: %d, output: %d, total: %d",
+            session_tokens["input"], session_tokens["output"], session_tokens["total"])
+```
+
+#### 5.4 Tool Call Logging
+
+Log which tools the agent calls to trace reasoning:
+
+```python
+# Inside the stream loop:
+if "tools" in chunk and "messages" in chunk["tools"]:
+    for msg in chunk["tools"]["messages"]:
+        logger.info("Tool [%s]: %s", msg.name, msg.content[:200])
+```
+
+#### Why This Matters
+
+- **Cost awareness** — know how many tokens each research query burns
+- **Debugging** — see which tools fired, in what order, and what they returned
+- **Context engineering validation** — verify that `read_url` truncation keeps token counts reasonable
+- Use `logging` (not `print`) so output can be silenced or redirected without changing code
+
+### Step 6: Dependencies (`requirements.txt`)
+
+> Note: Steps 6–9 were originally numbered 5–8. Renumbered after inserting Step 5 (Logging).
 
 ```
 langchain>=1.2.0
@@ -237,7 +341,7 @@ Add provider-specific packages as needed:
 - `langchain-anthropic` for Claude
 - `langchain-google-genai` for Gemini
 
-### Step 6: `.env` File
+### Step 7: `.env` File
 
 Copy `.env.example` to `.env` and fill in real values:
 
@@ -246,7 +350,7 @@ API_KEY=sk-your-real-key
 MODEL_NAME=gpt-4o-mini
 ```
 
-### Step 7: Update `README.md`
+### Step 8: Update `README.md`
 
 Write a README covering:
 1. **What it does** — one-paragraph description
@@ -255,7 +359,7 @@ Write a README covering:
 4. **Architecture** — brief description of agent loop, tools, memory
 5. **Example output** — reference `example_output/report.md`
 
-### Step 8: Generate Example Output
+### Step 9: Generate Example Output
 
 Run the agent with a real query (e.g., "Compare three RAG approaches: naive, sentence-window, and parent-child retrieval") and save the generated report to `example_output/report.md`.
 
@@ -273,6 +377,9 @@ Run the agent with a real query (e.g., "Compare three RAG approaches: naive, sen
 - [ ] **Multi-step** — agent makes 3-5+ tool calls per query
 - [ ] **Max iterations** — `recursion_limit` prevents infinite loops
 - [ ] **Error handling** — tools return error strings, agent adapts
+- [ ] **Logging** — `logging` module configured, not bare `print` for diagnostics
+- [ ] **Token tracking** — per-turn and cumulative session token counts via `usage_metadata`
+- [ ] **Tool call logging** — log tool names and truncated results for traceability
 - [ ] **System prompt** in `config.py`, not hardcoded in agent logic
 - [ ] **`.env`** for secrets, never committed (`.gitignore` covers it)
 - [ ] **`requirements.txt`** with pinned versions
