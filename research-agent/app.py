@@ -202,7 +202,11 @@ async def reports():
     output = Path(settings.output_dir)
     if not output.exists():
         return []
-    files = sorted(output.glob("*.md"), key=lambda f: f.name)
+    files = sorted(
+        (f for f in output.glob("*.md") if f.name[:1].isdigit()),
+        key=lambda f: f.name,
+        reverse=True,
+    )
     return [{"name": f.name, "size": f.stat().st_size} for f in files]
 
 
