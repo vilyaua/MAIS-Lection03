@@ -16,6 +16,8 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, StreamingResponse
+from langgraph.errors import GraphRecursionError
+from openai import APIConnectionError, APIError, AuthenticationError, RateLimitError
 
 from agent import agent
 from config import APP_VERSION, Settings
@@ -91,9 +93,23 @@ async def _stream_response(prompt: str) -> AsyncGenerator[str, None]:
 
     async def _produce():
         def _run():
-            for chunk in _sync_stream(prompt, config):
-                loop.call_soon_threadsafe(queue.put_nowait, chunk)
-            loop.call_soon_threadsafe(queue.put_nowait, None)  # sentinel: stream finished
+            try:
+                for chunk in _sync_stream(prompt, config):
+                    loop.call_soon_threadsafe(queue.put_nowait, chunk)
+            except GraphRecursionError:
+                err = "Sorry, I hit the maximum number of steps. Try a simpler query."
+                logger.warning("GraphRecursionError — recursion_limit=%d", settings.max_iterations)
+                loop.call_soon_threadsafe(queue.put_nowait, ("error", err))
+            except (APIError, APIConnectionError, RateLimitError, AuthenticationError) as e:
+                err = f"OpenAI API error — {e}"
+                logger.error("OpenAI API error: %s", e)
+                loop.call_soon_threadsafe(queue.put_nowait, ("error", err))
+            except Exception as e:
+                err = f"Unexpected error — {e}"
+                logger.exception("Unhandled error during agent.stream()")
+                loop.call_soon_threadsafe(queue.put_nowait, ("error", err))
+            finally:
+                loop.call_soon_threadsafe(queue.put_nowait, None)  # sentinel: stream finished
 
         await loop.run_in_executor(None, _run)
 
@@ -108,6 +124,12 @@ async def _stream_response(prompt: str) -> AsyncGenerator[str, None]:
         chunk = await queue.get()
         if chunk is None:
             break
+
+        # Error tuple from the producer thread — send as a message and stop
+        if isinstance(chunk, tuple) and chunk[0] == "error":
+            yield f"data: {json.dumps({'type': 'message', 'content': chunk[1]})}\n\n"
+            continue
+
         if "agent" in chunk and "messages" in chunk["agent"]:
             for msg in chunk["agent"]["messages"]:
                 if hasattr(msg, "content") and msg.content:

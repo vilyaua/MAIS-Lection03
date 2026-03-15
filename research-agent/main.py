@@ -8,6 +8,9 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+from langgraph.errors import GraphRecursionError
+from openai import APIConnectionError, APIError, AuthenticationError, RateLimitError
+
 from agent import agent
 from config import APP_VERSION, Settings
 
@@ -87,44 +90,57 @@ def main():
 
         logger.info("User: %s", user_input)
 
-        # Buffer tool call args (from "agent" chunks) so we can pair them
-        # with tool results (from "tools" chunks) — they arrive in separate chunks.
-        pending_calls: dict[str, str] = {}  # tool_call_id -> display arg string
+        try:
+            # Buffer tool call args (from "agent" chunks) so we can pair them
+            # with tool results (from "tools" chunks) — they arrive in separate chunks.
+            pending_calls: dict[str, str] = {}  # tool_call_id -> display arg string
 
-        # agent.stream() yields chunks as the ReAct loop progresses.
-        # Two chunk types: "agent" (LLM reasoning/response) and "tools" (tool results).
-        for chunk in agent.stream(
-            {"messages": [("user", user_input)]},
-            config=config,
-        ):
-            if "agent" in chunk and "messages" in chunk["agent"]:
-                for msg in chunk["agent"]["messages"]:
-                    if hasattr(msg, "content") and msg.content:
-                        print(f"\nAgent: {msg.content}")
+            # agent.stream() yields chunks as the ReAct loop progresses.
+            # Two chunk types: "agent" (LLM reasoning/response) and "tools" (tool results).
+            for chunk in agent.stream(
+                {"messages": [("user", user_input)]},
+                config=config,
+            ):
+                if "agent" in chunk and "messages" in chunk["agent"]:
+                    for msg in chunk["agent"]["messages"]:
+                        if hasattr(msg, "content") and msg.content:
+                            print(f"\nAgent: {msg.content}")
 
-                    # Capture tool call arguments for later pairing with results
-                    if hasattr(msg, "tool_calls") and msg.tool_calls:
-                        for tc in msg.tool_calls:
-                            pending_calls[tc["id"]] = _get_tool_call_args(tc["name"], tc["args"])
+                        # Capture tool call arguments for later pairing with results
+                        if hasattr(msg, "tool_calls") and msg.tool_calls:
+                            for tc in msg.tool_calls:
+                                pending_calls[tc["id"]] = _get_tool_call_args(
+                                    tc["name"], tc["args"]
+                                )
 
-                    # usage_metadata is attached by LangChain to each AIMessage
-                    if hasattr(msg, "usage_metadata") and msg.usage_metadata:
-                        u = msg.usage_metadata
-                        logger.info(
-                            "Tokens — input: %d, output: %d, total: %d",
-                            u.get("input_tokens", 0),
-                            u.get("output_tokens", 0),
-                            u.get("total_tokens", 0),
-                        )
-                        session_tokens["input"] += u.get("input_tokens", 0)
-                        session_tokens["output"] += u.get("output_tokens", 0)
-                        session_tokens["total"] += u.get("total_tokens", 0)
+                        # usage_metadata is attached by LangChain to each AIMessage
+                        if hasattr(msg, "usage_metadata") and msg.usage_metadata:
+                            u = msg.usage_metadata
+                            logger.info(
+                                "Tokens — input: %d, output: %d, total: %d",
+                                u.get("input_tokens", 0),
+                                u.get("output_tokens", 0),
+                                u.get("total_tokens", 0),
+                            )
+                            session_tokens["input"] += u.get("input_tokens", 0)
+                            session_tokens["output"] += u.get("output_tokens", 0)
+                            session_tokens["total"] += u.get("total_tokens", 0)
 
-            if "tools" in chunk and "messages" in chunk["tools"]:
-                for msg in chunk["tools"]["messages"]:
-                    call_args = pending_calls.pop(getattr(msg, "tool_call_id", ""), "")
-                    print(_format_tool_status(msg, call_args))
-                    logger.info("Tool [%s]: %s", msg.name, msg.content[:300])
+                if "tools" in chunk and "messages" in chunk["tools"]:
+                    for msg in chunk["tools"]["messages"]:
+                        call_args = pending_calls.pop(getattr(msg, "tool_call_id", ""), "")
+                        print(_format_tool_status(msg, call_args))
+                        logger.info("Tool [%s]: %s", msg.name, msg.content[:300])
+
+        except GraphRecursionError:
+            print("\nAgent: Sorry, I hit the maximum number of steps. Try a simpler query.")
+            logger.warning("GraphRecursionError — recursion_limit=%d", settings.max_iterations)
+        except (APIError, APIConnectionError, RateLimitError, AuthenticationError) as e:
+            print(f"\nAgent: OpenAI API error — {e}")
+            logger.error("OpenAI API error: %s", e)
+        except Exception as e:
+            print(f"\nAgent: Unexpected error — {e}")
+            logger.exception("Unhandled error during agent.stream()")
 
         logger.info(
             "Session totals — input: %d, output: %d, total: %d",
