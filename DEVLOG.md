@@ -106,6 +106,16 @@
 - Added `ARCHITECTURE.md` — full code flow and architecture explanation
 - Bumped VERSION: 0.3.0 → 0.3.1
 
+### 06:19 — Error handling for LLM and agent failures
+- `main.py`, `app.py`: wrapped `agent.stream()` with try/except for:
+  - `GraphRecursionError` — max ReAct iterations exceeded
+  - `APIError`, `APIConnectionError`, `RateLimitError`, `AuthenticationError` — OpenAI failures
+  - Generic `Exception` fallback
+- CLI: prints friendly error, logs details, continues REPL (no crash)
+- Web UI: sends error as SSE message event so user sees it in chat
+- Tools were already safe (`except Exception` → error string) — gap was only around the agent loop
+- Bumped VERSION: 0.3.1 → 0.3.2
+
 ### 06:20 — Fix Docker version mismatch
 - Removed `ARG APP_VERSION` from Dockerfile and build args from docker-compose.yml
 - `VERSION` file is now the single source of truth — `COPY . .` brings it into the image, `config.py` reads it
