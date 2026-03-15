@@ -36,16 +36,22 @@ Build an interactive **Research Agent** that takes a user's question, autonomous
 ```
 research-agent/
 ├── main.py              # Entry point — interactive REPL loop
+├── app.py               # FastAPI web UI with SSE streaming
 ├── agent.py             # Agent setup (LLM, tools, memory, create_react_agent)
-├── tools.py             # Tool definitions and implementations
+├── tools.py             # 5 tool definitions (web_search, read_url, write_report, list_reports, read_file)
 ├── config.py            # System prompt, settings, constants
 ├── requirements.txt     # Pinned dependencies
+├── VERSION              # Single source of truth for app version
+├── Dockerfile           # Multi-stage build (builder + runtime)
+├── docker-compose.yml   # Docker setup with volume mounts
+├── .dockerignore
 ├── .env                 # API keys (never commit)
 ├── .env.example         # Template for .env
-├── .gitignore           # Excludes .env, output/, __pycache__/
+├── .gitignore           # Excludes .env, __pycache__/, logs/
+├── ARCHITECTURE.md      # Code flow and architecture explanation
 ├── example_output/
 │   └── report.md        # Example generated report
-├── output/              # Directory where agent saves reports
+├── output/              # Directory where agent saves reports (tracked in git)
 └── README.md            # Setup instructions, architecture overview
 ```
 
@@ -363,24 +369,29 @@ Run the agent with a real query (e.g., "Compare three RAG approaches: naive, sen
 
 ## Checklist
 
-- [ ] **3+ tools** implemented with `@tool` decorator and clear docstrings
-- [ ] **`web_search`** uses `ddgs`, returns formatted results
-- [ ] **`read_url`** uses `trafilatura`, truncates to N chars (context engineering)
-- [ ] **`write_report`** saves Markdown to `output/` directory
-- [ ] **Agent loop** uses `create_react_agent` from LangGraph
-- [ ] **Memory** via `MemorySaver` — agent remembers conversation context
-- [ ] **Agent autonomy** — agent decides which tools to call and in what order
-- [ ] **Multi-step** — agent makes 3-5+ tool calls per query
-- [ ] **Max iterations** — `recursion_limit` prevents infinite loops
-- [ ] **Error handling** — tools return error strings, agent adapts
-- [ ] **Logging** — `logging` module configured, not bare `print` for diagnostics
-- [ ] **Token tracking** — per-turn and cumulative session token counts via `usage_metadata`
-- [ ] **Tool call logging** — log tool names and truncated results for traceability
-- [ ] **System prompt** in `config.py`, not hardcoded in agent logic
-- [ ] **`.env`** for secrets, never committed (`.gitignore` covers it)
-- [ ] **`requirements.txt`** with pinned versions
-- [ ] **`README.md`** with setup and usage instructions
-- [ ] **`example_output/report.md`** — one real generated report
+- [x] **5 tools** implemented with `@tool` decorator and clear docstrings
+- [x] **`web_search`** uses `ddgs`, returns formatted results
+- [x] **`read_url`** uses `trafilatura`, truncates to N chars (context engineering), 10s timeout
+- [x] **`write_report`** saves Markdown to `output/` with auto-generated `YYYY-MM-DD_HHMM_<description>.md` filename
+- [x] **`list_reports`** lists saved reports in `output/` (newest first)
+- [x] **`read_file`** reads a report from `output/` with path traversal protection
+- [x] **Agent loop** uses `create_react_agent` from LangGraph
+- [x] **Memory** via `MemorySaver` — agent remembers conversation context
+- [x] **Agent autonomy** — agent decides which tools to call and in what order
+- [x] **Multi-step** — agent makes 3-5+ tool calls per query
+- [x] **Max iterations** — `recursion_limit` prevents infinite loops
+- [x] **Error handling** — tools return error strings; `agent.stream()` wrapped with try/except for `GraphRecursionError`, OpenAI API errors, and generic exceptions
+- [x] **Logging** — `logging` module with `RotatingFileHandler` to `logs/agent.log`
+- [x] **Token tracking** — per-turn and cumulative session token counts via `usage_metadata`
+- [x] **Tool call logging** — log tool names, arguments, and truncated results for traceability
+- [x] **System prompt** in `config.py`, not hardcoded in agent logic
+- [x] **`.env`** for secrets, never committed (`.gitignore` covers it)
+- [x] **`requirements.txt`** with pinned versions
+- [x] **`README.md`** with setup and usage instructions
+- [x] **`example_output/report.md`** — one real generated report
+- [x] **FastAPI web UI** (`app.py`) with SSE streaming, token sidebar, reports panel, colorful tool logs
+- [x] **Docker** — multi-stage `Dockerfile` + `docker-compose.yml` with volume mounts
+- [x] **`ARCHITECTURE.md`** — code flow and architecture explanation
 
 ## Expected Agent Behavior
 
