@@ -11,7 +11,7 @@ cp .env.example .env
 # Edit .env and add your API key
 
 docker compose up --build
-# Open http://localhost:8501
+# Open http://localhost:8000
 ```
 
 ### Option 2: Local
@@ -29,7 +29,7 @@ cp .env.example .env
 # Edit .env and add your API key
 
 # 4. Run (pick one)
-streamlit run app.py      # Web UI at http://localhost:8501
+uvicorn app:app --reload  # Web UI at http://localhost:8000
 python main.py            # Console REPL
 ```
 
@@ -43,9 +43,9 @@ python main.py            # Console REPL
 
 ## Usage
 
-### Web UI (Streamlit)
+### Web UI (FastAPI)
 
-Open `http://localhost:8501` — type a question, watch the agent research in real time. Token usage is displayed in the sidebar.
+Open `http://localhost:8000` — type a question, watch the agent research in real time via SSE streaming. Token usage is displayed in the sidebar.
 
 ### Console
 
@@ -70,7 +70,7 @@ Goodbye!
 
 ```
 research-agent/
-├── app.py            # Streamlit web UI
+├── app.py            # FastAPI web UI (SSE streaming)
 ├── main.py           # Console REPL
 ├── agent.py          # Agent setup — LLM, tools, memory, create_react_agent
 ├── tools.py          # Tool implementations — web_search, read_url, write_report
