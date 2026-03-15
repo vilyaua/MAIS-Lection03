@@ -1,21 +1,48 @@
 import logging
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 from agent import agent
-from config import Settings
+from config import APP_VERSION, Settings
+
+Path("logs").mkdir(exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S",
+    handlers=[
+        logging.StreamHandler(),
+        RotatingFileHandler("logs/agent.log", maxBytes=5_000_000, backupCount=3),
+    ],
 )
 logger = logging.getLogger("research_agent")
 
 settings = Settings()
 
 
+def _format_tool_status(msg) -> str:
+    name = msg.name
+    content = msg.content
+    if name == "web_search":
+        count = content.count("Title:")
+        return f"  [web_search] {count} results found"
+    if name == "read_url":
+        if content.startswith("Error"):
+            return f"  [read_url] {content[:80]}"
+        return f"  [read_url] extracted {len(content):,} chars"
+    if name == "write_report":
+        return f"  [write_report] {content}"
+    return f"  [{name}] called"
+
+
 def main():
-    print("Research Agent (type 'exit' to quit)")
+    print(f"Research Agent v{APP_VERSION} (type 'exit' to quit)")
+    print(f"Provider: {settings.provider} | Model: {settings.model_name}")
     print("-" * 40)
+    logger.info(
+        "Starting Research Agent v%s [%s / %s]", APP_VERSION, settings.provider, settings.model_name
+    )
 
     config = {
         "configurable": {"thread_id": "session-1"},
@@ -60,7 +87,8 @@ def main():
 
             if "tools" in chunk and "messages" in chunk["tools"]:
                 for msg in chunk["tools"]["messages"]:
-                    logger.info("Tool [%s]: %s", msg.name, msg.content[:200])
+                    print(_format_tool_status(msg))
+                    logger.info("Tool [%s]: %s", msg.name, msg.content[:300])
 
         logger.info(
             "Session totals — input: %d, output: %d, total: %d",

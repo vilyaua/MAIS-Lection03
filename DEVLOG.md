@@ -47,3 +47,12 @@
 - Added `.dockerignore`
 - Added `streamlit>=1.45.0` to `requirements.txt`
 - Updated `README.md` — Docker as recommended setup, both web UI and console usage docs
+
+### 03:00 — File logging, versioning, provider/model display
+- Added `VERSION` file (single source of truth: `0.1.0`)
+- `config.py`: reads `APP_VERSION` from `VERSION` file
+- `Dockerfile`: `ARG APP_VERSION` stamped into `VERSION` at build time
+- `docker-compose.yml`: passes `APP_VERSION` build arg, mounts `logs/` volume
+- `app.py`: sidebar shows version, provider, model; live-updating token metrics; descriptive tool status (result count, chars extracted, errors); logs to `logs/agent.log` (rotating 5MB)
+- `main.py`: prints version/provider/model on startup; descriptive tool status; file logging
+- `.gitignore`: added `logs/`

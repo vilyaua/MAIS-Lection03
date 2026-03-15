@@ -1,5 +1,9 @@
+from pathlib import Path
+
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings
+
+APP_VERSION = (Path(__file__).parent / "VERSION").read_text().strip()
 
 
 class Settings(BaseSettings):

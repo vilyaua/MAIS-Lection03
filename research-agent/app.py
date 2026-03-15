@@ -1,14 +1,22 @@
 import logging
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 import streamlit as st
 
 from agent import agent
-from config import Settings
+from config import APP_VERSION, Settings
+
+Path("logs").mkdir(exist_ok=True)
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S",
+    handlers=[
+        logging.StreamHandler(),
+        RotatingFileHandler("logs/agent.log", maxBytes=5_000_000, backupCount=3),
+    ],
 )
 logger = logging.getLogger("research_agent")
 
@@ -21,9 +29,39 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
     st.session_state.session_tokens = {"input": 0, "output": 0, "total": 0}
 
+# Sidebar: app info + live token metrics
+with st.sidebar:
+    st.caption(f"v{APP_VERSION}")
+    st.markdown(f"**Provider:** `{settings.provider}`  \n**Model:** `{settings.model_name}`")
+    st.divider()
+    st.caption("Session token usage")
+    t = st.session_state.session_tokens
+    input_metric = st.empty()
+    output_metric = st.empty()
+    total_metric = st.empty()
+    input_metric.metric("Input tokens", t["input"])
+    output_metric.metric("Output tokens", t["output"])
+    total_metric.metric("Total tokens", t["total"])
+
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
+
+
+def _format_tool_status(msg) -> str:
+    name = msg.name
+    content = msg.content
+    if name == "web_search":
+        count = content.count("Title:")
+        return f"🔍 **web_search** — {count} results found"
+    if name == "read_url":
+        if content.startswith("Error"):
+            return f"🌐 **read_url** — {content[:80]}"
+        return f"📄 **read_url** — extracted {len(content):,} chars"
+    if name == "write_report":
+        return f"💾 **write_report** — {content}"
+    return f"🔧 **{name}** called"
+
 
 if prompt := st.chat_input("Ask a research question..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -53,6 +91,10 @@ if prompt := st.chat_input("Ask a research question..."):
                         st.session_state.session_tokens["input"] += u.get("input_tokens", 0)
                         st.session_state.session_tokens["output"] += u.get("output_tokens", 0)
                         st.session_state.session_tokens["total"] += u.get("total_tokens", 0)
+                        t = st.session_state.session_tokens
+                        input_metric.metric("Input tokens", t["input"])
+                        output_metric.metric("Output tokens", t["output"])
+                        total_metric.metric("Total tokens", t["total"])
                         logger.info(
                             "Tokens — input: %d, output: %d, total: %d",
                             u.get("input_tokens", 0),
@@ -62,17 +104,11 @@ if prompt := st.chat_input("Ask a research question..."):
 
             if "tools" in chunk and "messages" in chunk["tools"]:
                 for msg in chunk["tools"]["messages"]:
-                    status.write(f"**{msg.name}** called")
-                    logger.info("Tool [%s]: %s", msg.name, msg.content[:200])
+                    tool_info = _format_tool_status(msg)
+                    status.write(tool_info)
+                    logger.info("Tool [%s]: %s", msg.name, msg.content[:300])
 
         status.update(label="Research complete", state="complete", expanded=False)
         st.markdown(response_text)
 
     st.session_state.messages.append({"role": "assistant", "content": response_text})
-
-with st.sidebar:
-    st.caption("Session token usage")
-    t = st.session_state.get("session_tokens", {"input": 0, "output": 0, "total": 0})
-    st.metric("Input tokens", t["input"])
-    st.metric("Output tokens", t["output"])
-    st.metric("Total tokens", t["total"])
