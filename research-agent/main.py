@@ -38,11 +38,9 @@ def _format_tool_status(msg) -> str:
 
 def main():
     print(f"Research Agent v{APP_VERSION} (type 'exit' to quit)")
-    print(f"Provider: {settings.provider} | Model: {settings.model_name}")
+    print(f"Model: {settings.model_name}")
     print("-" * 40)
-    logger.info(
-        "Starting Research Agent v%s [%s / %s]", APP_VERSION, settings.provider, settings.model_name
-    )
+    logger.info("Starting Research Agent v%s [%s]", APP_VERSION, settings.model_name)
 
     config = {
         "configurable": {"thread_id": "session-1"},

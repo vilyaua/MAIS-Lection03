@@ -82,7 +82,17 @@
 - Root cause: LLM was skipping `write_report` and giving direct answers instead of saving reports
 - Bumped VERSION: 0.2.1 → 0.2.2
 
-### 06:10 — Fix Docker version mismatch
+### 06:10 — OpenAI-only: remove Anthropic support
+- Removed `_build_llm()` factory in `agent.py` — direct `ChatOpenAI` instantiation
+- Removed `provider` field from `config.py` Settings
+- Removed `langchain-anthropic` from `requirements.txt`
+- Cleaned up `tools.py`, `main.py`, `app.py` — removed all `settings.provider` references
+- Simplified `.env.example` — OpenAI only, no provider switching
+- Updated `README.md` — removed `PROVIDER` env var row
+- Updated `AGENTS.md` — removed multi-provider notes
+- Bumped VERSION: 0.2.2 → 0.3.0
+
+### 06:20 — Fix Docker version mismatch
 - Removed `ARG APP_VERSION` from Dockerfile and build args from docker-compose.yml
 - `VERSION` file is now the single source of truth — `COPY . .` brings it into the image, `config.py` reads it
 - Was showing `0.1.0` in Docker because docker-compose fallback was hardcoded

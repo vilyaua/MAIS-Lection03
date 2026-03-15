@@ -113,7 +113,6 @@ async def index():
 async def info():
     return {
         "version": APP_VERSION,
-        "provider": settings.provider,
         "model": settings.model_name,
         "tokens": session_tokens,
     }
@@ -188,7 +187,7 @@ CHAT_HTML = """\
 
   fetch('/api/info').then(r=>r.json()).then(d=>{
     document.getElementById('meta').innerHTML =
-      `v${d.version}<br><b>Provider:</b> ${d.provider}<br><b>Model:</b> ${d.model}`;
+      `v${d.version}<br><b>Model:</b> ${d.model}`;
     updateTokens(d.tokens);
   });
 

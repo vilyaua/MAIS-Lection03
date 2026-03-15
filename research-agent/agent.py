@@ -1,3 +1,4 @@
+from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
 
@@ -6,25 +7,10 @@ from tools import read_url, web_search, write_report
 
 settings = Settings()
 
-
-def _build_llm():
-    if settings.provider == "anthropic":
-        from langchain_anthropic import ChatAnthropic
-
-        return ChatAnthropic(
-            model=settings.model_name,
-            api_key=settings.api_key.get_secret_value(),
-        )
-
-    from langchain_openai import ChatOpenAI
-
-    return ChatOpenAI(
-        model=settings.model_name,
-        api_key=settings.api_key.get_secret_value(),
-    )
-
-
-llm = _build_llm()
+llm = ChatOpenAI(
+    model=settings.model_name,
+    api_key=settings.api_key.get_secret_value(),
+)
 
 tools = [web_search, read_url, write_report]
 

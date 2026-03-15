@@ -164,7 +164,7 @@ Additional tools that can improve the grade if they are meaningful:
 Use LangChain's `create_react_agent` from `langgraph`.
 
 ```python
-from langchain_openai import ChatOpenAI          # or ChatAnthropic, etc.
+from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver
 from tools import web_search, read_url, write_report
@@ -336,10 +336,6 @@ trafilatura>=2.0.0
 pydantic>=2.12.0
 pydantic-settings>=2.12.0
 ```
-
-Add provider-specific packages as needed:
-- `langchain-anthropic` for Claude
-- `langchain-google-genai` for Gemini
 
 ### Step 7: `.env` File
 
