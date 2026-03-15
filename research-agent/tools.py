@@ -49,7 +49,7 @@ def read_url(url: str) -> str:
         if not text:
             return f"Error: Could not extract text from: {url}"
         if len(text) > settings.max_url_content_length:
-            text = text[:settings.max_url_content_length] + "\n\n[... truncated]"
+            text = text[: settings.max_url_content_length] + "\n\n[... truncated]"
         return text
     except Exception as e:
         return f"Error reading URL: {e}"
