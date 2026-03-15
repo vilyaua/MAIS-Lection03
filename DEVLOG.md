@@ -132,6 +132,10 @@
 - Each report is a clickable link that opens raw markdown in a new tab
 - Bumped VERSION: 0.4.0 → 0.4.1
 
+### 06:35 — Track generated reports in git
+- Removed `output/` from `.gitignore` — agent-generated reports are now committed
+- Added 8 existing reports to the repo
+
 ### 06:20 — Fix Docker version mismatch
 - Removed `ARG APP_VERSION` from Dockerfile and build args from docker-compose.yml
 - `VERSION` file is now the single source of truth — `COPY . .` brings it into the image, `config.py` reads it
