@@ -37,3 +37,13 @@
 - Added `pyproject.toml` with ruff config: E, W, F, I, UP, B, SIM, S rule sets, line-length 100
 - Ran `pre-commit run --all-files` — fixed trailing whitespace and EOF issues in `homework-lesson-3/`
 - Installed hooks into `.git/hooks/pre-commit`
+
+### 02:30 — Merged `feat/first-approach` into `main`
+
+### 02:35 — Streamlit UI + Docker (`feat/docker`)
+- Added `app.py` — Streamlit chat UI with real-time tool call status, token usage sidebar
+- Added `Dockerfile` — `python:3.12-slim`, single-stage, healthcheck, exposes 8501
+- Added `docker-compose.yml` — `.env` passthrough, `output/` volume mount
+- Added `.dockerignore`
+- Added `streamlit>=1.45.0` to `requirements.txt`
+- Updated `README.md` — Docker as recommended setup, both web UI and console usage docs

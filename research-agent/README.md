@@ -4,6 +4,18 @@ An interactive AI research agent that autonomously searches the web, reads artic
 
 ## Setup
 
+### Option 1: Docker (recommended)
+
+```bash
+cp .env.example .env
+# Edit .env and add your API key
+
+docker compose up --build
+# Open http://localhost:8501
+```
+
+### Option 2: Local
+
 ```bash
 # 1. Create a virtual environment
 python -m venv .venv
@@ -15,20 +27,27 @@ pip install -r requirements.txt
 # 3. Configure environment
 cp .env.example .env
 # Edit .env and add your API key
+
+# 4. Run (pick one)
+streamlit run app.py      # Web UI at http://localhost:8501
+python main.py            # Console REPL
 ```
 
 ### Environment Variables
 
-| Variable     | Description                          | Example         |
-|-------------|--------------------------------------|-----------------|
-| `API_KEY`   | OpenAI API key (or other provider)   | `sk-...`        |
-| `MODEL_NAME`| LLM model identifier                 | `gpt-4o-mini`   |
+| Variable     | Description                          | Example            |
+|-------------|--------------------------------------|--------------------|
+| `API_KEY`   | LLM provider API key                | `sk-...`           |
+| `MODEL_NAME`| Model identifier                     | `gpt-4.1-mini`    |
+| `PROVIDER`  | `openai` or `anthropic`             | `openai`           |
 
 ## Usage
 
-```bash
-python main.py
-```
+### Web UI (Streamlit)
+
+Open `http://localhost:8501` — type a question, watch the agent research in real time. Token usage is displayed in the sidebar.
+
+### Console
 
 ```
 Research Agent (type 'exit' to quit)
@@ -51,11 +70,14 @@ Goodbye!
 
 ```
 research-agent/
-├── main.py           # Interactive REPL — reads user input, streams agent responses
+├── app.py            # Streamlit web UI
+├── main.py           # Console REPL
 ├── agent.py          # Agent setup — LLM, tools, memory, create_react_agent
 ├── tools.py          # Tool implementations — web_search, read_url, write_report
 ├── config.py         # Settings (pydantic-settings) and system prompt
 ├── requirements.txt  # Pinned dependencies
+├── Dockerfile        # Container image
+├── docker-compose.yml
 ├── .env.example      # Environment variable template
 ├── example_output/   # Sample generated report
 │   └── report.md
