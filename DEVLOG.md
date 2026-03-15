@@ -81,3 +81,8 @@
 - `config.py`: strengthened system prompt — `write_report` is now mandatory ("ALWAYS call write_report as your final tool call"), updated param name from `filename` to `description`
 - Root cause: LLM was skipping `write_report` and giving direct answers instead of saving reports
 - Bumped VERSION: 0.2.1 → 0.2.2
+
+### 06:10 — Fix Docker version mismatch
+- Removed `ARG APP_VERSION` from Dockerfile and build args from docker-compose.yml
+- `VERSION` file is now the single source of truth — `COPY . .` brings it into the image, `config.py` reads it
+- Was showing `0.1.0` in Docker because docker-compose fallback was hardcoded
