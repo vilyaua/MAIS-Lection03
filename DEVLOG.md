@@ -63,3 +63,16 @@
 
 ### 04:30 — Log user requests
 - `app.py`, `main.py`: log every user query and session exit to `logs/agent.log`
+
+### 05:00 — Refactor to FastAPI (`feat/fast-api`)
+- Replaced Streamlit with FastAPI + inline HTML/JS chat UI with SSE streaming
+- Endpoints: `GET /` (chat UI), `GET /api/info` (version/provider/model), `GET /api/chat?q=` (SSE stream)
+- Replaced `streamlit>=1.45.0` with `fastapi>=0.115.0` + `uvicorn>=0.34.0`
+- Dockerfile: entrypoint `streamlit` → `uvicorn`, port 8501 → 8000
+- Expected image size: ~934MB → ~530MB (removed pyarrow, pandas, numpy, babel, pydeck, altair)
+- Bumped VERSION: 0.1.0 → 0.2.0
+
+### 05:30 — Fix session hanging
+- `tools.py`: added 10s download timeout to `trafilatura.fetch_url` — was hanging indefinitely on slow/unresponsive URLs
+- `app.py`: wrapped sync `agent.stream()` in a thread via `asyncio.Queue` + `run_in_executor` — prevents blocking FastAPI's event loop
+- Bumped VERSION: 0.2.0 → 0.2.1
