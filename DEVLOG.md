@@ -92,6 +92,20 @@
 - Updated `AGENTS.md` — removed multi-provider notes
 - Bumped VERSION: 0.2.2 → 0.3.0
 
+### 06:15 — Add code comments for mid-level developers
+- Added module docstrings to `agent.py`, `tools.py`, `main.py`, `app.py`
+- Commented non-obvious patterns: SecretStr unwrapping, MemorySaver purpose, ReAct loop, context engineering truncation, sync-to-async bridge via Queue, multi-stage Docker build rationale
+- Added inline comments to `config.py` (max_url_content_length, max_iterations)
+- Added comments to `Dockerfile` and `docker-compose.yml`
+
+### 06:18 — Show tool call arguments in UI and CLI
+- `app.py`, `main.py`: capture `tool_calls` args from AIMessage, buffer in `pending_calls`, pair with tool results via `tool_call_id`
+- Added `_get_tool_call_args()` helper (shared pattern in both files)
+- Web UI now shows: `→ web_search("RAG approaches") — 5 results found`
+- CLI now shows: `[web_search]("RAG approaches") — 5 results found`
+- Added `ARCHITECTURE.md` — full code flow and architecture explanation
+- Bumped VERSION: 0.3.0 → 0.3.1
+
 ### 06:20 — Fix Docker version mismatch
 - Removed `ARG APP_VERSION` from Dockerfile and build args from docker-compose.yml
 - `VERSION` file is now the single source of truth — `COPY . .` brings it into the image, `config.py` reads it

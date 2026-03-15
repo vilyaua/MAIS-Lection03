@@ -1,4 +1,6 @@
-# --- Build stage: install deps with gcc, then discard build tools ---
+# --- Build stage ---
+# Install Python deps with gcc (needed to compile C extensions like trafilatura),
+# then copy only the installed packages to the runtime stage — discards gcc/headers.
 FROM python:3.12-slim AS builder
 
 RUN apt-get update && \
@@ -6,15 +8,19 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
+# --prefix=/install puts packages in a separate tree so we can COPY them cleanly
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# --- Runtime stage: clean image, no gcc, no build artifacts ---
+# --- Runtime stage ---
+# Clean image: no gcc, no pip cache, no build artifacts (~530 MB vs ~1.2 GB single-stage)
 FROM python:3.12-slim
 
 WORKDIR /app
 
+# Bring in pre-built Python packages from the builder
 COPY --from=builder /install /usr/local
 
+# COPY . . brings in app code + VERSION file (read by config.py at runtime)
 COPY . .
 
 RUN mkdir -p output logs

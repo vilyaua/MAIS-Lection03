@@ -3,17 +3,25 @@ from pathlib import Path
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings
 
+# Single source of truth for version — read from VERSION file at import time.
+# Same file is COPYed into Docker image, so `config.py` always reads the correct value.
 APP_VERSION = (Path(__file__).parent / "VERSION").read_text().strip()
 
 
 class Settings(BaseSettings):
+    """App configuration loaded from .env file (via pydantic-settings).
+
+    SecretStr prevents the API key from leaking in logs/repr.
+    All fields have defaults except api_key — the app won't start without it.
+    """
+
     api_key: SecretStr
     model_name: str = "gpt-4.1-mini"
 
     max_search_results: int = 5
-    max_url_content_length: int = 8000
+    max_url_content_length: int = 8000  # context engineering: caps text fed back to LLM
     output_dir: str = "output"
-    max_iterations: int = 25
+    max_iterations: int = 25  # LangGraph recursion_limit — prevents infinite ReAct loops
 
     model_config = {"env_file": ".env"}
 
