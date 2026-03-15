@@ -64,6 +64,7 @@ def _format_tool_status(msg) -> str:
 
 
 if prompt := st.chat_input("Ask a research question..."):
+    logger.info("User: %s", prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)

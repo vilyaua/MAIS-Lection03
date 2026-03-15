@@ -61,8 +61,11 @@ def main():
         if not user_input:
             continue
         if user_input.lower() in ("exit", "quit"):
+            logger.info("User exited session")
             print("Goodbye!")
             break
+
+        logger.info("User: %s", user_input)
 
         for chunk in agent.stream(
             {"messages": [("user", user_input)]},
