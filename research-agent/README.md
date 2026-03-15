@@ -37,9 +37,8 @@ python main.py            # Console REPL
 
 | Variable     | Description                          | Example            |
 |-------------|--------------------------------------|--------------------|
-| `API_KEY`   | LLM provider API key                | `sk-...`           |
+| `API_KEY`   | OpenAI API key                       | `sk-...`           |
 | `MODEL_NAME`| Model identifier                     | `gpt-4.1-mini`    |
-| `PROVIDER`  | `openai` or `anthropic`             | `openai`           |
 
 ## Usage
 

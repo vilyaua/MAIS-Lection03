@@ -9,7 +9,6 @@ APP_VERSION = (Path(__file__).parent / "VERSION").read_text().strip()
 class Settings(BaseSettings):
     api_key: SecretStr
     model_name: str = "gpt-4.1-mini"
-    provider: str = "openai"  # "openai" or "anthropic"
 
     max_search_results: int = 5
     max_url_content_length: int = 8000
