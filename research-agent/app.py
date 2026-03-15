@@ -202,7 +202,7 @@ async def reports():
     output = Path(settings.output_dir)
     if not output.exists():
         return []
-    files = sorted(output.glob("*.md"), key=lambda f: f.stat().st_mtime, reverse=True)
+    files = sorted(output.glob("*.md"), key=lambda f: f.name)
     return [{"name": f.name, "size": f.stat().st_size} for f in files]
 
 
@@ -249,7 +249,12 @@ CHAT_HTML = """\
   .msg.assistant pre { background: #f3f4f6; padding: 8px; border-radius: 6px;
                        overflow-x: auto; font-size: 13px; margin: 8px 0; }
   .msg.assistant code { font-size: 13px; }
-  .tool-log { font-size: 12px; color: #6b7280; padding: 4px 16px; }
+  .tool-log { font-size: 12px; padding: 4px 16px; }
+  .tool-log.web_search { color: #2563eb; }
+  .tool-log.read_url { color: #7c3aed; }
+  .tool-log.write_report { color: #059669; }
+  .tool-log.list_reports { color: #d97706; }
+  .tool-log.read_file { color: #0891b2; }
   .input-bar { padding: 16px 20px; background: white; border-top: 1px solid #e5e7eb;
                display: flex; gap: 8px; }
   .input-bar input { flex: 1; padding: 10px 14px; border: 1px solid #d1d5db;
@@ -310,9 +315,9 @@ CHAT_HTML = """\
     return d;
   }
 
-  function addTool(text) {
+  function addTool(text, toolName) {
     const d = document.createElement('div');
-    d.className = 'tool-log';
+    d.className = 'tool-log ' + (toolName || '');
     d.textContent = text;
     msgs.appendChild(d);
     msgs.scrollTop = msgs.scrollHeight;
@@ -352,7 +357,7 @@ CHAT_HTML = """\
       const d = JSON.parse(e.data);
       if (d.type === 'message') { lastContent = d.content; el.innerHTML = formatMd(d.content); }
       if (d.type === 'tokens') updateTokens(d.data);
-      if (d.type === 'tool') addTool(`\\u2192 ${d.tool}${d.args ? '("'+d.args+'")' : ''} \\u2014 ${d.detail}`);
+      if (d.type === 'tool') addTool(`\\u2192 ${d.tool}${d.args ? '("'+d.args+'")' : ''} \\u2014 ${d.detail}`, d.tool);
       if (d.type === 'done') { es.close(); btn.disabled = false; input.focus(); loadReports(); }
       msgs.scrollTop = msgs.scrollHeight;
     };
