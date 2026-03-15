@@ -56,3 +56,7 @@
 - `app.py`: sidebar shows version, provider, model; live-updating token metrics; descriptive tool status (result count, chars extracted, errors); logs to `logs/agent.log` (rotating 5MB)
 - `main.py`: prints version/provider/model on startup; descriptive tool status; file logging
 - `.gitignore`: added `logs/`
+
+### 04:00 — Multi-stage Dockerfile + report improvements
+- `Dockerfile`: refactored to multi-stage build (builder + runtime) — image size reduced from 1.19GB to 934MB by discarding gcc/build toolchain
+- `tools.py`: `write_report` — renamed `filename` param to `description`; auto-generates filename as `YYYY-MM-DD_HHMM_<description>.md`; prepends metadata line with provider and model name to report content
