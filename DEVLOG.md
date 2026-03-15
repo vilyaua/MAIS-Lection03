@@ -76,3 +76,8 @@
 - `tools.py`: added 10s download timeout to `trafilatura.fetch_url` — was hanging indefinitely on slow/unresponsive URLs
 - `app.py`: wrapped sync `agent.stream()` in a thread via `asyncio.Queue` + `run_in_executor` — prevents blocking FastAPI's event loop
 - Bumped VERSION: 0.2.0 → 0.2.1
+
+### 06:00 — Fix missing output files
+- `config.py`: strengthened system prompt — `write_report` is now mandatory ("ALWAYS call write_report as your final tool call"), updated param name from `filename` to `description`
+- Root cause: LLM was skipping `write_report` and giving direct answers instead of saving reports
+- Bumped VERSION: 0.2.1 → 0.2.2
