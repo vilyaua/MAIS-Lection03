@@ -1,3 +1,12 @@
+"""FastAPI web interface with Server-Sent Events (SSE) streaming.
+
+Run with: uvicorn app:app --reload
+Endpoints:
+  GET /           — chat UI (single-page HTML)
+  GET /api/info   — version + model metadata
+  GET /api/chat?q — SSE stream of agent responses
+"""
+
 import asyncio
 import json
 import logging
@@ -31,6 +40,7 @@ session_tokens = {"input": 0, "output": 0, "total": 0}
 
 
 def _format_tool_event(msg) -> dict:
+    """Convert a tool result into a compact dict for the SSE stream."""
     name = msg.name
     content = msg.content
     if name == "web_search":
@@ -46,7 +56,7 @@ def _format_tool_event(msg) -> dict:
 
 
 def _sync_stream(prompt: str, config: dict):
-    """Run agent.stream in a sync context (called from thread)."""
+    """Run agent.stream in a sync context (called from a thread via run_in_executor)."""
     yield from agent.stream(
         {"messages": [("user", prompt)]},
         config=config,
@@ -54,6 +64,12 @@ def _sync_stream(prompt: str, config: dict):
 
 
 async def _stream_response(prompt: str) -> AsyncGenerator[str, None]:
+    """Bridge sync LangGraph streaming into async SSE.
+
+    LangGraph's agent.stream() is synchronous and blocks the calling thread.
+    To avoid blocking FastAPI's event loop, we run it in a thread pool and
+    shuttle chunks through an asyncio.Queue back to the SSE generator.
+    """
     config = {
         "configurable": {"thread_id": "web-session"},
         "recursion_limit": settings.max_iterations,
@@ -66,12 +82,13 @@ async def _stream_response(prompt: str) -> AsyncGenerator[str, None]:
         def _run():
             for chunk in _sync_stream(prompt, config):
                 loop.call_soon_threadsafe(queue.put_nowait, chunk)
-            loop.call_soon_threadsafe(queue.put_nowait, None)
+            loop.call_soon_threadsafe(queue.put_nowait, None)  # sentinel: stream finished
 
         await loop.run_in_executor(None, _run)
 
     task = asyncio.create_task(_produce())
 
+    # Consume chunks from the queue and yield SSE events
     while True:
         chunk = await queue.get()
         if chunk is None:
