@@ -39,6 +39,8 @@ def _get_tool_call_args(name: str, args: dict) -> str:
         return args.get("url", "")
     if name == "write_report":
         return args.get("description", "")
+    if name == "read_file":
+        return args.get("filename", "")
     return ""
 
 
@@ -56,6 +58,13 @@ def _format_tool_status(msg, call_args: str = "") -> str:
         return f"  [read_url]{args_part}— extracted {len(content):,} chars"
     if name == "write_report":
         return f"  [write_report]{args_part}— {content}"
+    if name == "list_reports":
+        count = content.count(". ")
+        return f"  [list_reports] — {count} reports found"
+    if name == "read_file":
+        if content.startswith("Error"):
+            return f"  [read_file]{args_part}— {content[:80]}"
+        return f"  [read_file]{args_part}— {len(content):,} chars"
     return f"  [{name}]{args_part}— called"
 
 

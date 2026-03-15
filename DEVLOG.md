@@ -116,6 +116,15 @@
 - Tools were already safe (`except Exception` → error string) — gap was only around the agent loop
 - Bumped VERSION: 0.3.1 → 0.3.2
 
+### 06:25 — Add list_reports and read_file tools
+- `tools.py`: added `list_reports()` — lists saved .md files in output/ (newest first)
+- `tools.py`: added `read_file(filename)` — reads a report from output/ with path traversal protection
+- `agent.py`: registered both tools in the agent's tool list
+- `config.py`: updated system prompt with tool descriptions
+- `main.py`, `app.py`: added display formatting for new tools in CLI and SSE
+- Both tools reuse `max_url_content_length` truncation for context engineering
+- Bumped VERSION: 0.3.2 → 0.4.0
+
 ### 06:20 — Fix Docker version mismatch
 - Removed `ARG APP_VERSION` from Dockerfile and build args from docker-compose.yml
 - `VERSION` file is now the single source of truth — `COPY . .` brings it into the image, `config.py` reads it

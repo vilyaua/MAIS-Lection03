@@ -10,6 +10,7 @@ error in context and can adapt (retry with different params or skip the source).
 
 import os
 from datetime import datetime
+from pathlib import Path
 
 import trafilatura
 from ddgs import DDGS
@@ -94,3 +95,47 @@ def write_report(description: str, content: str) -> str:
         return f"Report saved successfully to: {filepath}"
     except Exception as e:
         return f"Error saving report: {e}"
+
+
+@tool
+def list_reports() -> str:
+    """List all previously saved research reports in the output directory.
+
+    Returns filenames sorted by date (newest first). Use this to check what
+    research has already been done before starting new work.
+    """
+    try:
+        output = Path(settings.output_dir)
+        if not output.exists():
+            return "No reports found — output directory does not exist yet."
+        files = sorted(output.glob("*.md"), key=lambda f: f.stat().st_mtime, reverse=True)
+        if not files:
+            return "No reports found."
+        return "\n".join(f"{i}. {f.name}" for i, f in enumerate(files, 1))
+    except Exception as e:
+        return f"Error listing reports: {e}"
+
+
+@tool
+def read_file(filename: str) -> str:
+    """Read a previously saved report from the output directory.
+
+    Use this to review past research, build on earlier findings, or update
+    an existing report. Use list_reports first to see available files.
+
+    Args:
+        filename: The filename to read (e.g. '2026-03-15_1420_rag_comparison.md').
+    """
+    try:
+        filepath = Path(settings.output_dir) / filename
+        if not filepath.exists():
+            return f"Error: File not found: {filename}"
+        # Restrict reads to the output directory (no path traversal)
+        if not filepath.resolve().is_relative_to(Path(settings.output_dir).resolve()):
+            return "Error: Access denied — can only read files from the output directory."
+        text = filepath.read_text(encoding="utf-8")
+        if len(text) > settings.max_url_content_length:
+            text = text[: settings.max_url_content_length] + "\n\n[... truncated]"
+        return text
+    except Exception as e:
+        return f"Error reading file: {e}"

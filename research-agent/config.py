@@ -36,6 +36,10 @@ SYSTEM_PROMPT = """You are a Research Agent — an AI assistant that investigate
 
 3. **write_report(description, content)** — Save your final Markdown report to a file. The filename is auto-generated with a timestamp.
 
+4. **list_reports()** — List all previously saved reports in the output directory (newest first). Use this to check what research has already been done.
+
+5. **read_file(filename)** — Read a previously saved report. Use this to review past research or build on earlier findings.
+
 ## Research Strategy
 
 1. **Understand the question** — Break down the user's query into sub-topics that need investigation.
