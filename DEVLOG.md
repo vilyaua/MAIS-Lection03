@@ -25,3 +25,15 @@
 - Added **Step 5: Logging & Token Usage Tracking** (per-turn + cumulative session tokens, tool call logging)
 - Updated checklist with logging items
 - Updated `research-agent/main.py` to match: `logging` module, `usage_metadata` tracking, tool call tracing
+
+### 02:10 — Multi-provider support
+- Added `PROVIDER` setting to `config.py` (`"openai"` or `"anthropic"`)
+- Refactored `agent.py` with `_build_llm()` — lazy imports for `ChatOpenAI` / `ChatAnthropic`
+- Updated `.env.example` with both providers and latest model recommendations (`gpt-4.1-mini`, `claude-sonnet-4-6`)
+- Added `langchain-anthropic>=0.3.0` to `requirements.txt`
+
+### 02:20 — Pre-commit setup
+- Added `.pre-commit-config.yaml` with `pre-commit-hooks` (trailing whitespace, EOF fixer, YAML/TOML check, large files, merge conflicts, private key detection) and `ruff` (linter + formatter)
+- Added `pyproject.toml` with ruff config: E, W, F, I, UP, B, SIM, S rule sets, line-length 100
+- Ran `pre-commit run --all-files` — fixed trailing whitespace and EOF issues in `homework-lesson-3/`
+- Installed hooks into `.git/hooks/pre-commit`
