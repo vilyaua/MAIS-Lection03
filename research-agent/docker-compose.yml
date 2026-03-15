@@ -1,9 +1,6 @@
 services:
   research-agent:
-    build:
-      context: .
-      args:
-        APP_VERSION: "${APP_VERSION:-0.1.0}"
+    build: .
     ports:
       - "8000:8000"
     env_file:

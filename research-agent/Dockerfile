@@ -13,13 +13,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-ARG APP_VERSION=dev
-
 COPY --from=builder /install /usr/local
 
 COPY . .
 
-RUN echo "${APP_VERSION}" > VERSION && mkdir -p output logs
+RUN mkdir -p output logs
 
 EXPOSE 8000
 
