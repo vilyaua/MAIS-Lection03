@@ -28,20 +28,32 @@ logger = logging.getLogger("research_agent")
 settings = Settings()
 
 
-def _format_tool_status(msg) -> str:
+def _get_tool_call_args(name: str, args: dict) -> str:
+    """Extract the primary argument from a tool call for display."""
+    if name == "web_search":
+        return args.get("query", "")
+    if name == "read_url":
+        return args.get("url", "")
+    if name == "write_report":
+        return args.get("description", "")
+    return ""
+
+
+def _format_tool_status(msg, call_args: str = "") -> str:
     """Convert a tool result message into a human-friendly one-liner for the console."""
     name = msg.name
     content = msg.content
+    args_part = f'("{call_args}") ' if call_args else " "
     if name == "web_search":
         count = content.count("Title:")
-        return f"  [web_search] {count} results found"
+        return f"  [web_search]{args_part}— {count} results found"
     if name == "read_url":
         if content.startswith("Error"):
-            return f"  [read_url] {content[:80]}"
-        return f"  [read_url] extracted {len(content):,} chars"
+            return f"  [read_url]{args_part}— {content[:80]}"
+        return f"  [read_url]{args_part}— extracted {len(content):,} chars"
     if name == "write_report":
-        return f"  [write_report] {content}"
-    return f"  [{name}] called"
+        return f"  [write_report]{args_part}— {content}"
+    return f"  [{name}]{args_part}— called"
 
 
 def main():
@@ -75,6 +87,10 @@ def main():
 
         logger.info("User: %s", user_input)
 
+        # Buffer tool call args (from "agent" chunks) so we can pair them
+        # with tool results (from "tools" chunks) — they arrive in separate chunks.
+        pending_calls: dict[str, str] = {}  # tool_call_id -> display arg string
+
         # agent.stream() yields chunks as the ReAct loop progresses.
         # Two chunk types: "agent" (LLM reasoning/response) and "tools" (tool results).
         for chunk in agent.stream(
@@ -85,6 +101,11 @@ def main():
                 for msg in chunk["agent"]["messages"]:
                     if hasattr(msg, "content") and msg.content:
                         print(f"\nAgent: {msg.content}")
+
+                    # Capture tool call arguments for later pairing with results
+                    if hasattr(msg, "tool_calls") and msg.tool_calls:
+                        for tc in msg.tool_calls:
+                            pending_calls[tc["id"]] = _get_tool_call_args(tc["name"], tc["args"])
 
                     # usage_metadata is attached by LangChain to each AIMessage
                     if hasattr(msg, "usage_metadata") and msg.usage_metadata:
@@ -101,7 +122,8 @@ def main():
 
             if "tools" in chunk and "messages" in chunk["tools"]:
                 for msg in chunk["tools"]["messages"]:
-                    print(_format_tool_status(msg))
+                    call_args = pending_calls.pop(getattr(msg, "tool_call_id", ""), "")
+                    print(_format_tool_status(msg, call_args))
                     logger.info("Tool [%s]: %s", msg.name, msg.content[:300])
 
         logger.info(

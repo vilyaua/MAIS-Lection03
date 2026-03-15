@@ -39,20 +39,31 @@ app = FastAPI(title="Research Agent", version=APP_VERSION)
 session_tokens = {"input": 0, "output": 0, "total": 0}
 
 
-def _format_tool_event(msg) -> dict:
+def _get_tool_call_args(name: str, args: dict) -> str:
+    """Extract the primary argument from a tool call for display."""
+    if name == "web_search":
+        return args.get("query", "")
+    if name == "read_url":
+        return args.get("url", "")
+    if name == "write_report":
+        return args.get("description", "")
+    return ""
+
+
+def _format_tool_event(msg, call_args: str = "") -> dict:
     """Convert a tool result into a compact dict for the SSE stream."""
     name = msg.name
     content = msg.content
     if name == "web_search":
         count = content.count("Title:")
-        return {"tool": name, "detail": f"{count} results found"}
+        return {"tool": name, "args": call_args, "detail": f"{count} results found"}
     if name == "read_url":
         if content.startswith("Error"):
-            return {"tool": name, "detail": content[:80]}
-        return {"tool": name, "detail": f"extracted {len(content):,} chars"}
+            return {"tool": name, "args": call_args, "detail": content[:80]}
+        return {"tool": name, "args": call_args, "detail": f"extracted {len(content):,} chars"}
     if name == "write_report":
-        return {"tool": name, "detail": content}
-    return {"tool": name, "detail": "called"}
+        return {"tool": name, "args": call_args, "detail": content}
+    return {"tool": name, "args": call_args, "detail": "called"}
 
 
 def _sync_stream(prompt: str, config: dict):
@@ -88,6 +99,10 @@ async def _stream_response(prompt: str) -> AsyncGenerator[str, None]:
 
     task = asyncio.create_task(_produce())
 
+    # Buffer tool call args (from "agent" chunks) so we can pair them
+    # with tool results (from "tools" chunks) — they arrive in separate chunks.
+    pending_calls: dict[str, str] = {}  # tool_call_id -> display arg string
+
     # Consume chunks from the queue and yield SSE events
     while True:
         chunk = await queue.get()
@@ -97,6 +112,11 @@ async def _stream_response(prompt: str) -> AsyncGenerator[str, None]:
             for msg in chunk["agent"]["messages"]:
                 if hasattr(msg, "content") and msg.content:
                     yield f"data: {json.dumps({'type': 'message', 'content': msg.content})}\n\n"
+
+                # Capture tool call arguments for later pairing with results
+                if hasattr(msg, "tool_calls") and msg.tool_calls:
+                    for tc in msg.tool_calls:
+                        pending_calls[tc["id"]] = _get_tool_call_args(tc["name"], tc["args"])
 
                 if hasattr(msg, "usage_metadata") and msg.usage_metadata:
                     u = msg.usage_metadata
@@ -113,7 +133,8 @@ async def _stream_response(prompt: str) -> AsyncGenerator[str, None]:
 
         if "tools" in chunk and "messages" in chunk["tools"]:
             for msg in chunk["tools"]["messages"]:
-                event = _format_tool_event(msg)
+                call_args = pending_calls.pop(getattr(msg, "tool_call_id", ""), "")
+                event = _format_tool_event(msg, call_args)
                 yield f"data: {json.dumps({'type': 'tool', **event})}\n\n"
                 logger.info("Tool [%s]: %s", msg.name, msg.content[:300])
 
@@ -261,7 +282,7 @@ CHAT_HTML = """\
       const d = JSON.parse(e.data);
       if (d.type === 'message') { lastContent = d.content; el.innerHTML = formatMd(d.content); }
       if (d.type === 'tokens') updateTokens(d.data);
-      if (d.type === 'tool') addTool(`\\u2192 ${d.tool}: ${d.detail}`);
+      if (d.type === 'tool') addTool(`\\u2192 ${d.tool}${d.args ? '("'+d.args+'")' : ''} \\u2014 ${d.detail}`);
       if (d.type === 'done') { es.close(); btn.disabled = false; input.focus(); }
       msgs.scrollTop = msgs.scrollHeight;
     };
