@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from collections.abc import AsyncGenerator
@@ -44,16 +45,37 @@ def _format_tool_event(msg) -> dict:
     return {"tool": name, "detail": "called"}
 
 
+def _sync_stream(prompt: str, config: dict):
+    """Run agent.stream in a sync context (called from thread)."""
+    yield from agent.stream(
+        {"messages": [("user", prompt)]},
+        config=config,
+    )
+
+
 async def _stream_response(prompt: str) -> AsyncGenerator[str, None]:
     config = {
         "configurable": {"thread_id": "web-session"},
         "recursion_limit": settings.max_iterations,
     }
 
-    for chunk in agent.stream(
-        {"messages": [("user", prompt)]},
-        config=config,
-    ):
+    loop = asyncio.get_event_loop()
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def _produce():
+        def _run():
+            for chunk in _sync_stream(prompt, config):
+                loop.call_soon_threadsafe(queue.put_nowait, chunk)
+            loop.call_soon_threadsafe(queue.put_nowait, None)
+
+        await loop.run_in_executor(None, _run)
+
+    task = asyncio.create_task(_produce())
+
+    while True:
+        chunk = await queue.get()
+        if chunk is None:
+            break
         if "agent" in chunk and "messages" in chunk["agent"]:
             for msg in chunk["agent"]["messages"]:
                 if hasattr(msg, "content") and msg.content:
@@ -78,6 +100,7 @@ async def _stream_response(prompt: str) -> AsyncGenerator[str, None]:
                 yield f"data: {json.dumps({'type': 'tool', **event})}\n\n"
                 logger.info("Tool [%s]: %s", msg.name, msg.content[:300])
 
+    await task
     yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 

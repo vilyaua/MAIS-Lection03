@@ -43,7 +43,9 @@ def read_url(url: str) -> str:
         url: The full URL of the web page to read.
     """
     try:
-        downloaded = trafilatura.fetch_url(url)
+        config = trafilatura.settings.use_config()
+        config.set("DEFAULT", "DOWNLOAD_TIMEOUT", "10")
+        downloaded = trafilatura.fetch_url(url, config=config)
         if downloaded is None:
             return f"Error: Could not fetch URL: {url}"
         text = trafilatura.extract(downloaded)

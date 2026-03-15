@@ -71,3 +71,8 @@
 - Dockerfile: entrypoint `streamlit` → `uvicorn`, port 8501 → 8000
 - Expected image size: ~934MB → ~530MB (removed pyarrow, pandas, numpy, babel, pydeck, altair)
 - Bumped VERSION: 0.1.0 → 0.2.0
+
+### 05:30 — Fix session hanging
+- `tools.py`: added 10s download timeout to `trafilatura.fetch_url` — was hanging indefinitely on slow/unresponsive URLs
+- `app.py`: wrapped sync `agent.stream()` in a thread via `asyncio.Queue` + `run_in_executor` — prevents blocking FastAPI's event loop
+- Bumped VERSION: 0.2.0 → 0.2.1
