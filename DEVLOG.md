@@ -136,6 +136,10 @@
 - Removed `output/` from `.gitignore` — agent-generated reports are now committed
 - Added 8 existing reports to the repo
 
+### 06:45 — Filter & sort reports descending
+- `app.py`: `/api/reports` now filters to only date-prefixed filenames (`f.name[:1].isdigit()`) and sorts descending (newest first)
+- Bumped VERSION: 0.4.2 → 0.4.3
+
 ### 06:40 — Alphabetical reports + colorful tool logs
 - `app.py`: `/api/reports` now sorts files alphabetically by name instead of by modification time
 - `app.py`: added per-tool CSS color classes — `web_search` (blue), `read_url` (purple), `write_report` (green), `list_reports` (amber), `read_file` (cyan)
