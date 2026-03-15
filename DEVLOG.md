@@ -125,6 +125,13 @@
 - Both tools reuse `max_url_content_length` truncation for context engineering
 - Bumped VERSION: 0.3.2 → 0.4.0
 
+### 06:30 — Reports panel in web UI
+- `app.py`: added `GET /api/reports` (list reports as JSON) and `GET /api/reports/{filename}` (serve raw markdown)
+- Path traversal protection on `/api/reports/{filename}`
+- Sidebar: added "Reports" section — loads on page load, refreshes after each query completes
+- Each report is a clickable link that opens raw markdown in a new tab
+- Bumped VERSION: 0.4.0 → 0.4.1
+
 ### 06:20 — Fix Docker version mismatch
 - Removed `ARG APP_VERSION` from Dockerfile and build args from docker-compose.yml
 - `VERSION` file is now the single source of truth — `COPY . .` brings it into the image, `config.py` reads it

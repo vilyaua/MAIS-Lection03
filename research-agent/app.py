@@ -14,8 +14,8 @@ from collections.abc import AsyncGenerator
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
 from langgraph.errors import GraphRecursionError
 from openai import APIConnectionError, APIError, AuthenticationError, RateLimitError
 
@@ -196,6 +196,27 @@ async def chat(q: str):
     )
 
 
+@app.get("/api/reports")
+async def reports():
+    """List all .md reports in output/ (newest first)."""
+    output = Path(settings.output_dir)
+    if not output.exists():
+        return []
+    files = sorted(output.glob("*.md"), key=lambda f: f.stat().st_mtime, reverse=True)
+    return [{"name": f.name, "size": f.stat().st_size} for f in files]
+
+
+@app.get("/api/reports/{filename}")
+async def report_content(filename: str):
+    """Return the raw markdown content of a report."""
+    filepath = Path(settings.output_dir) / filename
+    if not filepath.resolve().is_relative_to(Path(settings.output_dir).resolve()):
+        raise HTTPException(status_code=403, detail="Access denied")
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Report not found")
+    return PlainTextResponse(filepath.read_text(encoding="utf-8"))
+
+
 CHAT_HTML = """\
 <!DOCTYPE html>
 <html lang="en">
@@ -207,13 +228,18 @@ CHAT_HTML = """\
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
          background: #f7f7f8; color: #1a1a1a; display: flex; height: 100vh; }
-  .sidebar { width: 240px; background: #1e1e2e; color: #cdd6f4; padding: 20px;
-             display: flex; flex-direction: column; gap: 16px; }
+  .sidebar { width: 260px; background: #1e1e2e; color: #cdd6f4; padding: 20px;
+             display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
   .sidebar h2 { font-size: 16px; color: #89b4fa; }
+  .sidebar h3 { font-size: 13px; color: #89b4fa; margin-top: 4px; }
   .sidebar .meta { font-size: 12px; color: #6c7086; }
   .sidebar .metric { background: #313244; border-radius: 8px; padding: 10px; }
   .sidebar .metric .label { font-size: 11px; color: #6c7086; text-transform: uppercase; }
   .sidebar .metric .value { font-size: 20px; font-weight: 600; color: #cdd6f4; }
+  .reports-list { display: flex; flex-direction: column; gap: 4px; }
+  .report-item { font-size: 11px; color: #a6adc8; background: #313244; border-radius: 6px;
+                 padding: 6px 8px; cursor: pointer; word-break: break-all; text-decoration: none; }
+  .report-item:hover { background: #45475a; color: #cdd6f4; }
   .main { flex: 1; display: flex; flex-direction: column; }
   .messages { flex: 1; overflow-y: auto; padding: 20px; display: flex;
               flex-direction: column; gap: 12px; }
@@ -241,6 +267,8 @@ CHAT_HTML = """\
   <div class="metric"><div class="label">Input tokens</div><div class="value" id="t-in">0</div></div>
   <div class="metric"><div class="label">Output tokens</div><div class="value" id="t-out">0</div></div>
   <div class="metric"><div class="label">Total tokens</div><div class="value" id="t-total">0</div></div>
+  <h3>Reports</h3>
+  <div class="reports-list" id="reports">Loading...</div>
 </div>
 <div class="main">
   <div class="messages" id="messages"></div>
@@ -259,6 +287,17 @@ CHAT_HTML = """\
       `v${d.version}<br><b>Model:</b> ${d.model}`;
     updateTokens(d.tokens);
   });
+
+  function loadReports() {
+    fetch('/api/reports').then(r=>r.json()).then(files=>{
+      const el = document.getElementById('reports');
+      if (!files.length) { el.textContent = 'No reports yet'; return; }
+      el.innerHTML = files.map(f =>
+        `<a class="report-item" href="/api/reports/${encodeURIComponent(f.name)}" target="_blank">${f.name}</a>`
+      ).join('');
+    });
+  }
+  loadReports();
 
   input.addEventListener('keydown', e => { if(e.key==='Enter' && !btn.disabled) send(); });
 
@@ -314,7 +353,7 @@ CHAT_HTML = """\
       if (d.type === 'message') { lastContent = d.content; el.innerHTML = formatMd(d.content); }
       if (d.type === 'tokens') updateTokens(d.data);
       if (d.type === 'tool') addTool(`\\u2192 ${d.tool}${d.args ? '("'+d.args+'")' : ''} \\u2014 ${d.detail}`);
-      if (d.type === 'done') { es.close(); btn.disabled = false; input.focus(); }
+      if (d.type === 'done') { es.close(); btn.disabled = false; input.focus(); loadReports(); }
       msgs.scrollTop = msgs.scrollHeight;
     };
     es.onerror = () => { es.close(); btn.disabled = false; };
